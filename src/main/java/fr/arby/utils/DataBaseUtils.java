@@ -14,20 +14,16 @@ import java.util.List;
 
 public class DataBaseUtils {
 
-    public static List<Route> getAllRoute(String path) {
-        Connection connection = null;
-        List<Route> routesListe = new ArrayList<>();
-        try {
-            // db parameters
-            String url = "jdbc:sqlite:" + path;
-            // create a connection to the database
-            connection = DriverManager.getConnection(url);
+    private static String SELECT_ALL_ROUTE = "SELECT * FROM ROUTES";
 
+    public static List<Route> getAllRoute(String path) {
+        String url = "jdbc:sqlite:" + path;
+        List<Route> routesListe = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(url)){
             System.out.println("Connection to SQLite has been established.");
 
-            String sql = "SELECT * FROM ROUTES";
             Statement req  = connection.createStatement();
-            ResultSet rs    = req.executeQuery(sql);
+            ResultSet rs    = req.executeQuery(SELECT_ALL_ROUTE);
             while (rs.next()) {
                 Route route = Route.builder()
                         .origin(rs.getString("ORIGIN"))
@@ -38,14 +34,6 @@ public class DataBaseUtils {
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
-        } finally {
-            try {
-                if (connection != null) {
-                    connection.close();
-                }
-            } catch (SQLException ex) {
-                System.out.println(ex.getMessage());
-            }
         }
         return routesListe;
     }
