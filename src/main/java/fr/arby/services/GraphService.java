@@ -21,8 +21,8 @@ public class GraphService {
 
     public void launchPathComputing(String falconPath, String empirePath) throws IOException {
         // Init des paramètres
-        Falcon falcon = mapper.readValue(Paths.get(falconPath).toFile(), Falcon.class);
-        Empire empire = mapper.readValue(Paths.get(empirePath).toFile(), Empire.class);
+        Falcon falcon = mapper.readValue(new File(falconPath), Falcon.class);
+        Empire empire = mapper.readValue(new File(empirePath), Empire.class);
         String absoluteDbPath = getAbsolutePath(falconPath, falcon.getRoutes_db());
         // Récupération des routes
         List<Route> routesList = DataBaseUtils.getAllRoute(absoluteDbPath);

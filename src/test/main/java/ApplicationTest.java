@@ -13,7 +13,7 @@ import java.io.IOException;
 @ExtendWith(SpringExtension.class)
 @ExtendWith(MockitoExtension.class)
 @SpringBootApplication
-@ComponentScan(basePackages = "fr.mmb.mars")
+@ComponentScan(basePackages = "fr.arby")
 public class ApplicationTest {
 
     @Autowired
@@ -21,8 +21,8 @@ public class ApplicationTest {
 
     @Test
     void testScenario1() throws IOException {
-        graphService.launchPathComputing(getClass().getResource("millenium-falcon.json").toString(),
-                getClass().getResource("empire.json").toString());
+        graphService.launchPathComputing(getClass().getResource("example1/millennium-falcon.json").getFile(),
+                getClass().getResource("example1/empire.json").getFile());
     }
 
 }
