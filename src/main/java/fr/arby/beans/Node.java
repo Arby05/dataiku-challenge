@@ -13,11 +13,7 @@ import java.util.Map;
 public class Node {
     private String planetName;
     @Builder.Default
-    private int distance = Integer.MAX_VALUE;
-    @Builder.Default
     private List<Integer> daysWithBountyHunters = new ArrayList<>();
-    @Builder.Default
-    private List<Node> shortestPath = new ArrayList<>();
     @Builder.Default
     private Map<String, Integer> adjacentNodes = new HashMap<>();
 
@@ -27,5 +23,10 @@ public class Node {
 
     public void addBountyHunter(int day) {
         daysWithBountyHunters.add(day);
+    }
+
+    @Override
+    public String toString() {
+        return planetName;
     }
 }
