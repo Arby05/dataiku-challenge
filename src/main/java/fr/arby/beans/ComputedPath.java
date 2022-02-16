@@ -15,13 +15,14 @@ import java.util.List;
 public class ComputedPath {
     private List<Step> steps;
     private Integer totalDistance = 0;
+    private Integer totalDays = 0;
     private Integer refuelNumber = 0;
     private Integer bountyHunterEncounter = 0;
     private Double probability;
 
     @Override
     public String toString() {
-        int totalDays = totalDistance + refuelNumber;
+        totalDays = totalDistance + refuelNumber + steps.stream().mapToInt(Step::getDayToWait).sum();
         return steps + " - distance : " + totalDistance + " - refuel : " + refuelNumber + " - BH : " + bountyHunterEncounter + " - total day passed : " + totalDays;
     }
 
@@ -48,6 +49,10 @@ public class ComputedPath {
         steps.add(step);
     }
 
+    /**
+     * Constructeur de copyu
+     * @param toCopy ComputedPath à copier
+     */
     public ComputedPath (ComputedPath toCopy) {
         this.refuelNumber = toCopy.refuelNumber;
         this.totalDistance = toCopy.totalDistance;

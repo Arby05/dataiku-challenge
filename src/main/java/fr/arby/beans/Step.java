@@ -7,7 +7,10 @@ import lombok.Data;
 @Builder
 public class Step {
     private String planetName;
-    private Integer distanceFromPreviousJump;
+    private int dayOfArrival;
+    private boolean refuelOnPlanet;
+    private int daysToWait;
+    private int distanceFromPreviousJump;
 
     @Override
     public String toString() {

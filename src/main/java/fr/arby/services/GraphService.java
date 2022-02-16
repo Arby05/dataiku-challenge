@@ -3,12 +3,13 @@ package fr.arby.services;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.arby.beans.*;
 import fr.arby.utils.DataBaseUtils;
+import fr.arby.utils.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,11 +20,13 @@ public class GraphService {
 
     private Map<String, Node> nodesMap = new HashMap<>();
 
+    private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
+
     public Double computeSuccessProbability(String falconPath, String empirePath) throws IOException {
         // Init des paramètres
         Falcon falcon = mapper.readValue(new File(falconPath), Falcon.class);
         Empire empire = mapper.readValue(new File(empirePath), Empire.class);
-        String absoluteDbPath = getAbsolutePath(falconPath, falcon.getRoutes_db());
+        String absoluteDbPath = Utils.getAbsolutePath(falconPath, falcon.getRoutes_db());
         // Récupération des routes
         List<Route> routesList = DataBaseUtils.getAllRoute(absoluteDbPath);
         // Initialisation du graphe à partir des routes
@@ -53,45 +56,37 @@ public class GraphService {
         }
         // Maintenant on peut se lancer dans notre algorithme de parcours en profondeur
         ComputedPath resultPath = listAllPath(nodesMap.get(falcon.getDeparture()), nodesMap.get(falcon.getArrival()),
-                falcon.getAutonomy(), falcon.getAutonomy(), empire.getCountdown());
+                falcon.getAutonomy(), empire.getCountdown());
         if (resultPath == null) {
-            System.out.println("Chemin trop long, la galaxie est condamnée ...");
+            LOGGER.error("Chemin trop long, la galaxie est condamnée ...");
             return 0d;
         } else {
-            System.out.println(resultPath);
+            LOGGER.info(resultPath.toString());
             resultPath.computeProbability();
             return resultPath.getProbability();
         }
     }
 
-    private String getAbsolutePath(String falconPath, String routeDbPath) {
-        Path dbFilePath = Paths.get(routeDbPath);
-        if (dbFilePath.isAbsolute()) {
-            // chemin absolu ? Rien à faire
-            return routeDbPath;
-        } else { // Sinon on reconstruit le chemin à partir du falconPath
-            return Paths.get(falconPath).getParent() + File.separator + routeDbPath;
-        }
-    }
-
-    private ComputedPath listAllPath(Node source, Node destination, Integer maxAutonomy, Integer currentAutonomy, Integer countdown) {
+    private ComputedPath listAllPath(Node source, Node destination, Integer maxAutonomy, Integer countdown) {
         Map<String, Boolean> isVisitedMap = new HashMap<>();
         ComputedPath computedPath = new ComputedPath();
-        ArrayList<Step> steps = new ArrayList<>();
         // Init du path avec notre première étape
         Step initialStep = Step.builder()
                 .planetName(source.getPlanetName())
-                .distanceFromPreviousJump(0)
                 .build();
         computedPath.addStep(initialStep);
-        // Call recursive utility
         List<ComputedPath> resultPaths = new ArrayList<>();
-        recursiveFindPath(source, destination, isVisitedMap, computedPath, 0, maxAutonomy, currentAutonomy, countdown, resultPaths);
+        // Appelle récursif à notre méthode de parcours en profondeur
+        recursiveFindPath(source, destination, isVisitedMap, computedPath, 0, maxAutonomy, maxAutonomy, countdown, resultPaths);
+        // On regarde si on peut éviter les chasseurs de prime dans nos chemins trouvés
+        for (ComputedPath path : resultPaths) {
+            //tryToOptimizePath(path, countdown);
+        }
         // On va choisir notre chemin Le moins risqué et le plus court
         if (resultPaths.size() > 0) {
             return resultPaths.stream().sorted(
                     Comparator.comparingInt(ComputedPath::getBountyHunterEncounter)
-                    .thenComparing(ComputedPath::getTotalDistance)).collect(Collectors.toList()).get(0);
+                            .thenComparing(ComputedPath::getTotalDistance)).collect(Collectors.toList()).get(0);
         }
         return null;
     }
@@ -102,25 +97,28 @@ public class GraphService {
         if (currentDay > countdown) {
             return;
         }
-        // On est au bout du chemin, on construit notre Path, on l'ajoute à la liste des résultats et on return
+        // Si on est au bout du chemin, on construit notre Path, on l'ajoute à la liste des résultats et on return
         if (currentNode.equals(destination)) {
             computedPath.setTotalDistance(computedPath.getSteps().stream().mapToInt(Step::getDistanceFromPreviousJump).sum());
+            computedPath.setTotalDays(computedPath.getTotalDistance() + computedPath.getRefuelNumber()
+                    + computedPath.getSteps().stream().mapToInt(Step::getDaysToWait).sum());
             resultPaths.add(new ComputedPath(computedPath));
             return;
         }
-        // Ajout du noeud courant au noeud visité
+        // Ajout du noeud courant au noeuds visités
         isVisitedMap.put(currentNode.getPlanetName(), true);
         // Recursivité sur tout les noeuds adjacents
         for (Map.Entry<String, Integer> adjNode : currentNode.getAdjacentNodes().entrySet()) {
-            // On arrive sur une nouvelle planète. Y a t il des chasseur de prime ?
-            int bountyHunterCount = 0;
+            // Arrivée sur une nouvelle planète
+            String nextName = adjNode.getKey();
+            Integer nextDistance = adjNode.getValue();
+            Node nextNode = nodesMap.get(nextName);
+            // Y a t il des chasseurs de prime ?
+            int bountyHunterCount = 0; // On utilise un compteur pour gérer le cas où on doit refuel avec des BH présents
             boolean isBountyHunter = currentNode.getDaysWithBountyHunters().contains(currentDay);
             if (isBountyHunter) {
                 bountyHunterCount++;
             }
-            String nextName = adjNode.getKey();
-            Integer nextDistance = adjNode.getValue();
-            Node nextNode = nodesMap.get(nextName);
             boolean isRefuel = false;
             // Doit on faire le plein avant de repartir ?
             if (currentAutonomy < nextDistance && nextDistance <= maxAutonomy) {
@@ -132,16 +130,10 @@ public class GraphService {
             // Si la distance à parcourir est trop grande, la planète est inaccessible, on ne peut pas suivre ce chemin
             // On vérifie aussi si on l'a déjà visité ou non pour éviter les cycles
             if (nextDistance <= maxAutonomy && (isVisitedMap.get(nextName) == null || !isVisitedMap.get(nextName))) {
-                // On contruit l'étape suivante
-                Step nextStep = Step.builder()
-                        .planetName(nextName)
-                        .distanceFromPreviousJump(nextDistance)
-                        .build();
-                // On mets à jour le chemin qui suit cet étape
-                computedPath.getSteps().add(nextStep);
                 int oldAutonomy = currentAutonomy;
                 if (isRefuel) {
                     computedPath.refuel();
+                    computedPath.getSteps().get(computedPath.getSteps().size() - 1).setRefuelOnPlanet(true);
                     currentAutonomy = maxAutonomy;
                     currentDay++;
                 }
@@ -150,6 +142,14 @@ public class GraphService {
                 currentAutonomy = currentAutonomy - nextDistance;
                 // Et le temps qui passe
                 currentDay = currentDay + nextDistance;
+                // On contruit l'étape suivante
+                Step nextStep = Step.builder()
+                        .planetName(nextName)
+                        .distanceFromPreviousJump(nextDistance)
+                        .dayOfArrival(currentDay + nextDistance)
+                        .build();
+                // On mets à jour le chemin qui suit cet étape
+                computedPath.getSteps().add(nextStep);
                 // On saute ! Avec les nouvelles valeurs d'arrivée passé en paramètre
                 recursiveFindPath(nextNode, destination, isVisitedMap, computedPath, currentDay, maxAutonomy, currentAutonomy, countdown, resultPaths);
                 // Retrait des variables qui ont été modifié
@@ -166,6 +166,42 @@ public class GraphService {
             }
         }
         isVisitedMap.put(currentNode.getPlanetName(), false);
+    }
+
+    /**
+     * On fait l'hypothèse qu'on à jamais de chasseur de prime au départ de Tatooine. Cela simplifie l'agorithme d'optimisation
+     *
+     * @param path
+     * @param countdown
+     */
+    private void tryToOptimizePath(ComputedPath path, Integer countdown) {
+        // Y a t il besoin d'essayer d'éviter les chasseurs de prime ?
+        if (path.getBountyHunterEncounter() == 0) return;
+        // Combien de jour pouvons nous attendre au maximum
+        int maxWait = countdown - path.getTotalDays();
+        // Si pas de marge, on ne peut pas faire mieux
+        if (maxWait == 0) return;
+        // On parcours nos step en essayant d'éviter les chasseurs de prime. Pas la peine de passer par Tatooine, on considère qu'il n'y à jamais de chasseurs de prime au départ
+        int alreadyWaited = 0;
+        for (int i = 1; i < path.getSteps().size(); i++) {
+            Step currentStep = path.getSteps().get(i);
+            Node currentNode = nodesMap.get(currentStep.getPlanetName());
+            int dayOfArrival = currentStep.getDayOfArrival();
+            if (currentNode.getDaysWithBountyHunters().contains(dayOfArrival)) {
+                for (int j = 1; j - alreadyWaited <= maxWait; j++) {
+                    if (!currentNode.getDaysWithBountyHunters().contains(dayOfArrival + j)) {
+                        alreadyWaited = j; // On note qu'on à attendu
+                        maxWait = maxWait - j;
+                        path.getSteps().get(i - 1).setDaysToWait(j); // On met à jour le step correspondant
+                        // Et le Path
+                        if (currentStep.isRefuelOnPlanet())
+                            path.revertBountyHunterSpotted(2);
+                        else
+                            path.revertBountyHunterSpotted(1);
+                    }
+                }
+            }
+        }
     }
 
 }
