@@ -17,6 +17,7 @@ public class ComputedPath {
     private Integer totalDistance = 0;
     private Integer refuelNumber = 0;
     private Integer bountyHunterEncounter = 0;
+    private Double probability;
 
     @Override
     public String toString() {
@@ -52,5 +53,12 @@ public class ComputedPath {
         this.totalDistance = toCopy.totalDistance;
         this.steps = new ArrayList<>(toCopy.steps);
         this.bountyHunterEncounter = toCopy.bountyHunterEncounter;
+    }
+
+    public void computeProbability() {
+        probability = 1d;
+        for (int i = 0; i < bountyHunterEncounter; i++) {
+            probability = probability - (Math.pow(9, i) / Math.pow(10, i+1));
+        }
     }
 }

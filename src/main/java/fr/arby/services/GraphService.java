@@ -19,7 +19,7 @@ public class GraphService {
 
     private Map<String, Node> nodesMap = new HashMap<>();
 
-    public void launchPathComputing(String falconPath, String empirePath) throws IOException {
+    public Double computeSuccessProbability(String falconPath, String empirePath) throws IOException {
         // Init des paramètres
         Falcon falcon = mapper.readValue(new File(falconPath), Falcon.class);
         Empire empire = mapper.readValue(new File(empirePath), Empire.class);
@@ -56,8 +56,11 @@ public class GraphService {
                 falcon.getAutonomy(), falcon.getAutonomy(), empire.getCountdown());
         if (resultPath == null) {
             System.out.println("Chemin trop long, la galaxie est condamnée ...");
+            return 0d;
         } else {
             System.out.println(resultPath);
+            resultPath.computeProbability();
+            return resultPath.getProbability();
         }
     }
 
@@ -110,15 +113,15 @@ public class GraphService {
         // Recursivité sur tout les noeuds adjacents
         for (Map.Entry<String, Integer> adjNode : currentNode.getAdjacentNodes().entrySet()) {
             // On arrive sur une nouvelle planète. Y a t il des chasseur de prime ?
-            Integer bountyHunterCount = 0;
-            Boolean isBountyHunter = currentNode.getDaysWithBountyHunters().contains(currentDay);
+            int bountyHunterCount = 0;
+            boolean isBountyHunter = currentNode.getDaysWithBountyHunters().contains(currentDay);
             if (isBountyHunter) {
                 bountyHunterCount++;
             }
             String nextName = adjNode.getKey();
             Integer nextDistance = adjNode.getValue();
             Node nextNode = nodesMap.get(nextName);
-            Boolean isRefuel = false;
+            boolean isRefuel = false;
             // Doit on faire le plein avant de repartir ?
             if (currentAutonomy < nextDistance && nextDistance <= maxAutonomy) {
                 isRefuel = true;

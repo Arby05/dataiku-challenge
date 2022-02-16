@@ -19,7 +19,7 @@ public class ConsoleApplication implements CommandLineRunner {
         try {
             String falconPath = args[0];
             String empirePath = args[1];
-            graphService.launchPathComputing(falconPath, empirePath);
+            graphService.computeSuccessProbability(falconPath, empirePath);
         } catch (Exception e) {
             e.printStackTrace();
         }
