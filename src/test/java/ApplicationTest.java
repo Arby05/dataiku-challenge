@@ -1,13 +1,20 @@
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.arby.services.GraphService;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -21,32 +28,23 @@ public class ApplicationTest {
     @Autowired
     private GraphService graphService;
 
-    @Test
-    void testScenario1() throws IOException {
-        Double result = graphService.computeSuccessProbability(getClass().getResource("example1/millennium-falcon.json").getPath().replaceFirst("/", ""),
-                getClass().getResource("example1/empire.json").getPath().replaceFirst("/", ""));
+    private ObjectMapper mapper = new ObjectMapper();
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3, 4})
+    void testScenario(int schenario) throws IOException {
+        URL falcon = getClass().getResource("example" + schenario + "/millennium-falcon.json");
+        URL empire = getClass().getResource("example" + schenario + "/empire.json");
+        URL answer = getClass().getResource("example" + schenario + "/answer.json");
+        List<URL> nullTestingFiles = Stream.of(falcon, empire, answer).filter(url -> url == null).collect(Collectors.toList());
+        if (nullTestingFiles.size() > 0) {
+            throw new IOException("Testing file(s) not found : " + nullTestingFiles);
+        }
+        Double result = graphService.computeSuccessProbability(falcon.getPath().replaceFirst("/", ""),
+                empire.getPath().replaceFirst("/", ""));
+        // Lecture du JSON de réponse
+        mapper.readValue(new File(answer.getPath().replaceFirst("/", "")), Double.class);
         assertEquals(0d, result);
-    }
-
-    @Test
-    void testScenario2() throws IOException {
-        Double result = graphService.computeSuccessProbability(getClass().getResource("example2/millennium-falcon.json").getPath().replaceFirst("/", ""),
-                getClass().getResource("example2/empire.json").getPath().replaceFirst("/", ""));
-        assertEquals(0.81d, result);
-    }
-
-    @Test
-    void testScenario3() throws IOException {
-        Double result = graphService.computeSuccessProbability(getClass().getResource("example3/millennium-falcon.json").getPath().replaceFirst("/", ""),
-                getClass().getResource("example3/empire.json").getPath().replaceFirst("/", ""));
-        assertEquals(0.9d, result);
-    }
-
-    @Test
-    void testScenario4() throws IOException {
-        Double result = graphService.computeSuccessProbability(getClass().getResource("example4/millennium-falcon.json").getPath().replaceFirst("/", ""),
-                getClass().getResource("example4/empire.json").getPath().replaceFirst("/", ""));
-        assertEquals(1d ,result);
     }
 
 }

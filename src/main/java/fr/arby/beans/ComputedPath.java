@@ -14,33 +14,12 @@ import java.util.List;
 @NoArgsConstructor
 public class ComputedPath {
     private List<Step> steps;
-    private Integer totalDistance = 0;
-    private Integer totalDays = 0;
-    private Integer refuelNumber = 0;
-    private Integer bountyHunterEncounter = 0;
-    private Double probability;
 
     @Override
     public String toString() {
-        totalDays = totalDistance + refuelNumber + steps.stream().mapToInt(Step::getDaysToWait).sum();
-        return steps + " - distance : " + totalDistance + " - refuel : " + refuelNumber + " - BH : " + bountyHunterEncounter + " - total day passed : " + totalDays;
+        return steps + " - distance : " + getTotalDistance() + " - refuel : " + getTotalRefuel() + " - BH : " + getTotalBountyHunterEncounter() + " - total day passed : " + getTotalDays();
     }
 
-    public void refuel() {
-        refuelNumber++;
-    }
-
-    public void bountyHunterSpotted(int count) {
-        bountyHunterEncounter = bountyHunterEncounter + count;
-    }
-
-    public void revertRefuel() {
-        refuelNumber--;
-    }
-
-    public void revertBountyHunterSpotted(int count) {
-        bountyHunterEncounter = bountyHunterEncounter - count;
-    }
 
     public void addStep (Step step) {
         if (steps == null) {
@@ -50,20 +29,34 @@ public class ComputedPath {
     }
 
     /**
-     * Constructeur de copyu
+     * Constructeur de copy
      * @param toCopy ComputedPath à copier
      */
     public ComputedPath (ComputedPath toCopy) {
-        this.refuelNumber = toCopy.refuelNumber;
-        this.totalDistance = toCopy.totalDistance;
         this.steps = new ArrayList<>(toCopy.steps);
-        this.bountyHunterEncounter = toCopy.bountyHunterEncounter;
     }
 
-    public void computeProbability() {
-        probability = 1d;
-        for (int i = 0; i < bountyHunterEncounter; i++) {
+    public double computeProbability() {
+        double probability = 1d;
+        for (int i = 0; i < getTotalBountyHunterEncounter(); i++) {
             probability = probability - (Math.pow(9, i) / Math.pow(10, i+1));
         }
+        return probability;
+    }
+
+    public int getTotalBountyHunterEncounter() {
+        return steps.stream().mapToInt(Step::getRiskedEncounter).sum();
+    }
+
+    public int getTotalDistance() {
+        return steps.stream().mapToInt(Step::getDistanceFromPreviousJump).sum();
+    }
+
+    public int getTotalRefuel() {
+        return (int) steps.stream().filter(Step::isRefuel).count();
+    }
+
+    public int getTotalDays() {
+        return getTotalDistance() + getTotalRefuel() + steps.stream().mapToInt(Step::getDaysToWait).sum();
     }
 }
