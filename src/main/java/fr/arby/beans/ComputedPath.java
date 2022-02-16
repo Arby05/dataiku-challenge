@@ -33,7 +33,12 @@ public class ComputedPath {
      * @param toCopy ComputedPath à copier
      */
     public ComputedPath (ComputedPath toCopy) {
-        this.steps = new ArrayList<>(toCopy.steps);
+        List<Step> stepToCopy = toCopy.getSteps();
+        List<Step> newSteps = new ArrayList<>();
+        for (Step step : stepToCopy) {
+            newSteps.add(step.clone());
+        }
+        this.steps = newSteps;
     }
 
     public double computeProbability() {

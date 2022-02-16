@@ -1,4 +1,5 @@
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import fr.arby.services.GraphService;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,8 +44,8 @@ public class ApplicationTest {
         Double result = graphService.computeSuccessProbability(falcon.getPath().replaceFirst("/", ""),
                 empire.getPath().replaceFirst("/", ""));
         // Lecture du JSON de réponse
-        mapper.readValue(new File(answer.getPath().replaceFirst("/", "")), Double.class);
-        assertEquals(0d, result);
+        Double expected = mapper.readValue(new File(answer.getPath().replaceFirst("/", "")), ObjectNode.class).get("odds").asDouble();
+        assertEquals(expected, result);
     }
 
 }
