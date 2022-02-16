@@ -22,7 +22,7 @@ public class ComputedPath {
 
     @Override
     public String toString() {
-        totalDays = totalDistance + refuelNumber + steps.stream().mapToInt(Step::getDayToWait).sum();
+        totalDays = totalDistance + refuelNumber + steps.stream().mapToInt(Step::getDaysToWait).sum();
         return steps + " - distance : " + totalDistance + " - refuel : " + refuelNumber + " - BH : " + bountyHunterEncounter + " - total day passed : " + totalDays;
     }
 
