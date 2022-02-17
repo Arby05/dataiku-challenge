@@ -4,12 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.arby.beans.*;
 import fr.arby.utils.DataBaseUtils;
 import fr.arby.utils.Utils;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,18 +20,41 @@ import java.util.stream.Collectors;
 public class GraphService {
 
     private ObjectMapper mapper = new ObjectMapper();
+    private Falcon falcon;
+    private Empire empire;
 
     private Map<String, Node> nodesMap = new HashMap<>();
 
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
-    public Double computeSuccessProbability(String falconPath, String empirePath) throws IOException {
+    public Double computeSuccessProbability(String falconPath, String empirePath) throws IOException, SQLException {
+        falcon = mapper.readValue(new File(falconPath), Falcon.class);
+        empire = mapper.readValue(new File(empirePath), Empire.class);
+        String absoluteDbPath = Utils.getAbsolutePathFromFalconPath(falconPath, falcon.getRoutes_db());
+        return computeSuccessProbability(absoluteDbPath);
+    }
+
+    public Double computeSuccessProbability(InputStream empireIS) throws IOException, SQLException {
+        // Récupération du fichier falcon en ressources si besoin
+        if (falcon == null) {
+            InputStream falconIS = getClass().getClassLoader().getResourceAsStream("millennium-falcon.json");
+            falcon = mapper.readValue(falconIS, Falcon.class);
+        }
+        empire = mapper.readValue(empireIS, Empire.class);
+        // Récupération du fichier database en resources
+        InputStream dbIS = getClass().getClassLoader().getResourceAsStream("universe.db");
+        // Copy à l'extérieur du jar. C'est moche, mais c'est une limitation du java en package jar/war
+        String tmpdir = System.getProperty("java.io.tmpdir");
+        File tempFile = new File(tmpdir + File.separator + "universe_temp.db");
+        FileUtils.copyInputStreamToFile(dbIS, tempFile);
+        return computeSuccessProbability(tempFile.getPath());
+    }
+
+    public Double computeSuccessProbability(String routePath) throws SQLException {
         // Init des paramètres
-        Falcon falcon = mapper.readValue(new File(falconPath), Falcon.class);
-        Empire empire = mapper.readValue(new File(empirePath), Empire.class);
-        String absoluteDbPath = Utils.getAbsolutePath(falconPath, falcon.getRoutes_db());
+
         // Récupération des routes
-        List<Route> routesList = DataBaseUtils.getAllRoute(absoluteDbPath);
+        List<Route> routesList = DataBaseUtils.getAllRoute(routePath);
         // Initialisation du graphe à partir des routes
         for (Route route : routesList) {
             // Récupération de l'origine et de la destination avec init si ils n'existent pas
@@ -77,7 +103,7 @@ public class GraphService {
         computedPath.addStep(initialStep);
         List<ComputedPath> resultPaths = new ArrayList<>();
         // Appelle récursif à notre méthode de parcours en profondeur
-        recursiveFindPath(source, destination, isVisitedMap, computedPath, initialStep,0, maxAutonomy, maxAutonomy, countdown, resultPaths);
+        recursiveFindPath(source, destination, isVisitedMap, computedPath, initialStep, 0, maxAutonomy, maxAutonomy, countdown, resultPaths);
         // On regarde si on peut éviter les chasseurs de prime dans nos chemins trouvés si besoin
         for (ComputedPath path : resultPaths) {
             tryToOptimizePath(path, countdown);
@@ -111,7 +137,7 @@ public class GraphService {
             Integer nextDistance = adjNode.getValue();
             Node nextNode = nodesMap.get(nextName);
             // Si la nouvelle destination est trop loin on passe au noeud suivant, elle est inaccessible avec l'autonomie max
-            if(nextDistance > maxAutonomy) {
+            if (nextDistance > maxAutonomy) {
                 continue;
             }
 

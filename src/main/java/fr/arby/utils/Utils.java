@@ -6,7 +6,7 @@ import java.nio.file.Paths;
 
 public class Utils {
 
-    public static String getAbsolutePath(String falconPath, String routeDbPath) {
+    public static String getAbsolutePathFromFalconPath(String falconPath, String routeDbPath) {
         Path dbFilePath = Paths.get(routeDbPath);
         if (dbFilePath.isAbsolute()) {
             // chemin absolu ? Rien à faire
@@ -15,4 +15,5 @@ public class Utils {
             return Paths.get(falconPath).getParent() + File.separator + routeDbPath;
         }
     }
+
 }

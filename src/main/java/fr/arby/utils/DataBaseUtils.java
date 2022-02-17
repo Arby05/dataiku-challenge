@@ -1,6 +1,8 @@
 package fr.arby.utils;
 
 import fr.arby.beans.Route;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -14,14 +16,14 @@ import java.util.List;
 
 public class DataBaseUtils {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataBaseUtils.class);
+
     private static String SELECT_ALL_ROUTE = "SELECT * FROM ROUTES";
 
-    public static List<Route> getAllRoute(String path) {
+    public static List<Route> getAllRoute(String path) throws SQLException {
         String url = "jdbc:sqlite:" + path;
         List<Route> routesListe = new ArrayList<>();
         try (Connection connection = DriverManager.getConnection(url)){
-            System.out.println("Connection to SQLite has been established.");
-
             Statement req  = connection.createStatement();
             ResultSet rs    = req.executeQuery(SELECT_ALL_ROUTE);
             while (rs.next()) {
@@ -33,7 +35,8 @@ public class DataBaseUtils {
                 routesListe.add(route);
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            LOGGER.error("Problem when reading universe database", e);
+            throw e;
         }
         return routesListe;
     }

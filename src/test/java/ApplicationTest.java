@@ -4,15 +4,16 @@ import fr.arby.services.GraphService;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.context.web.WebAppConfiguration;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@SpringBootTest(classes = AbstractMarsBatchTest.ApplicationTest.class)
 @ExtendWith(SpringExtension.class)
-@ExtendWith(MockitoExtension.class)
 @SpringBootApplication
+@WebAppConfiguration
 @ComponentScan(basePackages = "fr.arby")
 public class ApplicationTest {
 
@@ -33,7 +34,7 @@ public class ApplicationTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3, 4})
-    void testScenario(int schenario) throws IOException {
+    void testScenario(int schenario) throws IOException, SQLException {
         URL falcon = getClass().getResource("example" + schenario + "/millennium-falcon.json");
         URL empire = getClass().getResource("example" + schenario + "/empire.json");
         URL answer = getClass().getResource("example" + schenario + "/answer.json");
