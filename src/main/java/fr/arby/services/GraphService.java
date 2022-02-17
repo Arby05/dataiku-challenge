@@ -3,7 +3,6 @@ package fr.arby.services;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.arby.beans.*;
 import fr.arby.utils.DataBaseUtils;
-import fr.arby.utils.Utils;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +11,8 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,7 +31,12 @@ public class GraphService {
     public Double computeSuccessProbability(String falconPath, String empirePath) throws IOException, SQLException {
         falcon = mapper.readValue(new File(falconPath), Falcon.class);
         empire = mapper.readValue(new File(empirePath), Empire.class);
-        String absoluteDbPath = Utils.getAbsolutePathFromFalconPath(falconPath, falcon.getRoutes_db());
+        String absoluteDbPath = falcon.getRoutes_db();
+        // On peut avoir notre chemin de BDD en absolu ou relatif, on gère le cas
+        Path dbFilePath = Paths.get(absoluteDbPath);
+        // chemin absolu ? Rien à faire, sinon on doit le reconstruire
+        if (!dbFilePath.isAbsolute())
+            absoluteDbPath = Paths.get(falconPath).getParent() + File.separator + falcon.getRoutes_db();
         return computeSuccessProbability(absoluteDbPath);
     }
 
