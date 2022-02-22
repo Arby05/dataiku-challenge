@@ -10,8 +10,8 @@ import java.util.List;
 
 /**
  * On devrait créer une classe repository pour requêter dans la BDD,
- * mais comme on ne va faire qu'une seule lecture, on se permet de le faire dans le service ici.
- * Idem, on devrait initier la connexion et le mettre en attribut de classe.
+ * mais comme on ne va faire qu'une seule lecture, on se permet de le faire de manière statique ici.
+ * Idem, on devrait initier la connexion et le mettre en attribut de classe...
  */
 
 public class DataBaseUtils {
@@ -20,6 +20,12 @@ public class DataBaseUtils {
 
     private static String SELECT_ALL_ROUTE = "SELECT * FROM ROUTES";
 
+    /**
+     * Méthode statique de récupération des routes contenue en BDD
+     * @param path le chemin vers la base SQLite
+     * @return La liste des routes contenue dans la base de donnée
+     * @throws SQLException
+     */
     public static List<Route> getAllRoute(String path) throws SQLException {
         String url = "jdbc:sqlite:" + path;
         List<Route> routesListe = new ArrayList<>();
@@ -35,7 +41,7 @@ public class DataBaseUtils {
                 routesListe.add(route);
             }
         } catch (SQLException e) {
-            LOGGER.error("Problem when reading universe database", e);
+            LOGGER.error("Problème lors de la lecture de la base de donnée " + path, e);
             throw e;
         }
         return routesListe;

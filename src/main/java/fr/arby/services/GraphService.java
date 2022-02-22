@@ -28,18 +28,33 @@ public class GraphService {
 
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
+    /**
+     * Méthode d'entrée principale en mode console
+     * @param falconPath Le chemin vers le fichier millenium-falcon.json
+     * @param empirePath Le chemin vers le fichier empire.json
+     * @return La probabilité de succès sous forme de Double i.e. 0.81 pour 81%, etc ...
+     * @throws IOException
+     * @throws SQLException
+     */
     public Double computeSuccessProbability(String falconPath, String empirePath) throws IOException, SQLException {
         falcon = mapper.readValue(new File(falconPath), Falcon.class);
         empire = mapper.readValue(new File(empirePath), Empire.class);
         String absoluteDbPath = falcon.getRoutes_db();
-        // On peut avoir notre chemin de BDD en absolu ou relatif, on gère le cas
         Path dbFilePath = Paths.get(absoluteDbPath);
-        // chemin absolu ? Rien à faire, sinon on doit le reconstruire
+        // On peut avoir notre chemin de BDD en absolu ou relatif, on gère le cas
+        // Chemin absolu ? Rien à faire, sinon on doit le reconstruire à partir du fichier falcon
         if (!dbFilePath.isAbsolute())
             absoluteDbPath = Paths.get(falconPath).getParent() + File.separator + falcon.getRoutes_db();
         return computeSuccessProbability(absoluteDbPath);
     }
 
+    /**
+     * Méthode d'entrée principale en mode webapp
+     * @param empireIS l'InputStream du fichier empire.json déposé via l'IHM
+     * @return La probabilité de succès sous forme de Double i.e. 0.81 pour 81%, etc ...
+     * @throws IOException
+     * @throws SQLException
+     */
     public Double computeSuccessProbability(InputStream empireIS) throws IOException, SQLException {
         // Récupération du fichier falcon en ressources si besoin
         if (falcon == null) {
@@ -56,9 +71,13 @@ public class GraphService {
         return computeSuccessProbability(tempFile.getPath());
     }
 
+    /**
+     * Méthode de calcul de la probabilité à partir
+     * @param routePath le chemin absolu vers le fichier database qui contient les routes
+     * @return La probabilité de succès sous forme de Double i.e. 0.81 pour 81%, etc ...
+     * @throws SQLException
+     */
     public Double computeSuccessProbability(String routePath) throws SQLException {
-        // Init des paramètres
-
         // Récupération des routes
         List<Route> routesList = DataBaseUtils.getAllRoute(routePath);
         // Initialisation du graphe à partir des routes
@@ -87,10 +106,9 @@ public class GraphService {
             nodesMap.get(bountyHunter.getPlanet()).addBountyHunter(bountyHunter.getDay());
         }
         // Maintenant on peut se lancer dans notre algorithme de parcours en profondeur
-        ComputedPath resultPath = listAllPath(nodesMap.get(falcon.getDeparture()), nodesMap.get(falcon.getArrival()),
-                falcon.getAutonomy(), empire.getCountdown());
+        ComputedPath resultPath = listAllPath(nodesMap.get(falcon.getDeparture()), nodesMap.get(falcon.getArrival()));
         if (resultPath == null) {
-            LOGGER.error("Chemin trop long, la galaxie est condamnée ...");
+            LOGGER.warn("Chemin trop long, la galaxie est condamnée ...");
             return 0d;
         } else {
             LOGGER.info(resultPath.toString());
@@ -99,7 +117,13 @@ public class GraphService {
         }
     }
 
-    private ComputedPath listAllPath(Node source, Node destination, Integer maxAutonomy, Integer countdown) {
+    /**
+     * Méthode d'init du parcours en profondeur du graph pour obtenir tous les chemins possible entre la source et la destionation
+     * @param source le noeud de départ dans le Graph
+     * @param destination le noeud cible dans le Graph
+     * @return le chemin le moins risqué et le plus court entre la source et la destionation faisable dans le temps impartie, null si aucun chemins n'est possible
+     */
+    private ComputedPath listAllPath(Node source, Node destination) {
         Map<String, Boolean> isVisitedMap = new HashMap<>();
         ComputedPath computedPath = new ComputedPath();
         // Init du path avec notre première étape
@@ -107,12 +131,13 @@ public class GraphService {
                 .planetName(source.getPlanetName())
                 .build();
         computedPath.addStep(initialStep);
+        // tous les chemins possible entre la source et la destionation qui sont faisable dans le temps impartie
         List<ComputedPath> resultPaths = new ArrayList<>();
         // Appelle récursif à notre méthode de parcours en profondeur
-        recursiveFindPath(source, destination, isVisitedMap, computedPath, initialStep, 0, maxAutonomy, maxAutonomy, countdown, resultPaths);
+        recursiveFindPath(source, destination, isVisitedMap, computedPath, initialStep, 0, falcon.getAutonomy(), resultPaths);
         // On regarde si on peut éviter les chasseurs de prime dans nos chemins trouvés si besoin
         for (ComputedPath path : resultPaths) {
-            tryToOptimizePath(path, countdown);
+            tryToOptimizePath(path);
         }
         // On va choisir notre chemin Le moins risqué et le plus court
         if (resultPaths.size() > 0) {
@@ -123,10 +148,21 @@ public class GraphService {
         return null;
     }
 
+    /**
+     * Méthode récursive pour le parcours en profondeur du graph. Elle alimente la liste resultPaths avec tous les chemin trouvé possible dans le temps imparti
+     * @param currentNode le noeud courant
+     * @param destination la destination finale
+     * @param isVisitedMap la map qui contient la liste des noeud visité pour éviter les cycle
+     * @param computedPath le chemin en cours de calcul
+     * @param currentStep l'étape en cours
+     * @param currentDay le jour courant
+     * @param currentAutonomy l'autonomie courante
+     * @param resultPaths la liste des chemins possibles qu'on alimente au fur et à mesure du parcours
+     */
     private void recursiveFindPath(Node currentNode, Node destination, Map<String, Boolean> isVisitedMap, ComputedPath computedPath, Step currentStep,
-                                   Integer currentDay, Integer maxAutonomy, Integer currentAutonomy, Integer countdown, List<ComputedPath> resultPaths) {
-        // Si on à dépssé le countdown, c'est qu'on a déjà perdu ...
-        if (currentDay > countdown) {
+                                   Integer currentDay, Integer currentAutonomy, List<ComputedPath> resultPaths) {
+        // Si on à dépassé le countdown, c'est qu'on a déjà perdu
+        if (currentDay > empire.getCountdown()) {
             return;
         }
         // Si on est au bout du chemin, on construit notre Path, on l'ajoute à la liste des résultats et on return
@@ -143,7 +179,7 @@ public class GraphService {
             Integer nextDistance = adjNode.getValue();
             Node nextNode = nodesMap.get(nextName);
             // Si la nouvelle destination est trop loin on passe au noeud suivant, elle est inaccessible avec l'autonomie max
-            if (nextDistance > maxAutonomy) {
+            if (nextDistance > falcon.getAutonomy()) {
                 continue;
             }
 
@@ -165,11 +201,10 @@ public class GraphService {
             // Copie des paramètres pour éviter de tout rollback
             int oldCurrentAutonomy = currentAutonomy;
             int oldCurrentDay = currentDay;
-            // Si la distance à parcourir est trop grande, la planète est inaccessible, on ne peut pas suivre ce chemin
             // On vérifie aussi si on l'a déjà visité ou non pour éviter les cycles
             if (isVisitedMap.get(nextName) == null || !isVisitedMap.get(nextName)) {
                 if (isRefuel) {
-                    currentAutonomy = maxAutonomy;
+                    currentAutonomy = falcon.getAutonomy();
                     currentDay++;
                     currentStep.setRefuel(true);
                 }
@@ -186,7 +221,7 @@ public class GraphService {
                 // On mets à jour le chemin qui suit cet étape
                 computedPath.getSteps().add(nextStep);
                 // On saute ! Avec les nouvelles valeurs d'arrivée passé en paramètre, fuel brûlé, temps passé, ...
-                recursiveFindPath(nextNode, destination, isVisitedMap, computedPath, nextStep, currentDay, maxAutonomy, currentAutonomy, countdown, resultPaths);
+                recursiveFindPath(nextNode, destination, isVisitedMap, computedPath, nextStep, currentDay, currentAutonomy, resultPaths);
                 // Rollback des variables qui ont été modifiées
                 computedPath.getSteps().remove(nextStep);
                 if (isRefuel) {
@@ -201,15 +236,13 @@ public class GraphService {
 
     /**
      * On fait l'hypothèse qu'on à jamais de chasseur de prime au départ de Tatooine. Cela simplifie l'agorithme d'optimisation
-     *
-     * @param path
-     * @param countdown
+     * @param path le chemin qu'on cherche à optimiser
      */
-    private void tryToOptimizePath(ComputedPath path, Integer countdown) {
+    private void tryToOptimizePath(ComputedPath path) {
         // Y a t il besoin d'essayer d'éviter les chasseurs de prime ?
         if (path.getTotalBountyHunterEncounter() == 0) return;
         // Combien de jour pouvons nous attendre au maximum
-        int maxWait = countdown - path.getTotalDays();
+        int maxWait = empire.getCountdown() - path.getTotalDays();
         // Si pas de marge, on ne peut pas faire mieux
         if (maxWait == 0) return;
         // On parcours nos step en essayant d'éviter les chasseurs de prime. Pas la peine de passer par Tatooine,

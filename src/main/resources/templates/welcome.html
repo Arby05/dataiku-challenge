@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns="http://www.w3.org/1999/html">
 <head>
     <title>Page de chargement des plans de l'empire</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
@@ -11,13 +11,14 @@
         <div class="row">
             <div class="col-md-8 mx-auto">
                 <h2>Chargement du fichier de l'empire</h2>
-                <p th:text="${message}" th:if="${message ne null}" class="alert alert-primary"></p>
+                </br>
                 <form method="post" th:action="@{/upload}" enctype="multipart/form-data">
                     <div class="form-group">
                         <input type="file" name="file" class="form-control-file">
                     </div>
-                    <button type="submit" class="btn btn-primary">Upload File</button>
+                    <button type="submit" class="btn btn-primary float-md-right">Upload File</button>
                 </form>
+                <p th:text="${message}" th:if="${message ne null}" class="alert alert-primary"></p>
             </div>
         </div>
     </div>
