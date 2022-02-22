@@ -36,13 +36,14 @@ public class WebappController {
      * Méthode qui receptionne le submit du formulaire
      * @param file le fichier passé en formulaire
      * @param attributes les attributs qu'on va insérer dans la vue
-     * @return
+     * @return redirection vers la vue principale avec le résultat du calcul
      */
     @RequestMapping(value = "/upload", method = RequestMethod.POST)
     private String computePage(@RequestParam("file") MultipartFile file, RedirectAttributes attributes) {
         // Controle de présence du fichier
         if (file.isEmpty()) {
             attributes.addFlashAttribute("message", "Aucun fichier sélectionné");
+            attributes.addFlashAttribute("class", "alert-warning");
             return "redirect:/";
         }
         double result;
@@ -52,10 +53,16 @@ public class WebappController {
         } catch (Exception e) {
             LOGGER.error("Fichier reçu non valide", e);
             attributes.addFlashAttribute("message", "Fichier invalide, veuillez réessayer");
+            attributes.addFlashAttribute("class", "alert-warning");
             return "redirect:/";
         }
         // Affichage de la probabilité
         attributes.addFlashAttribute("message", "Probabilité de succès : " + result * 100 + "% !");
+        if (result == 0d) {
+            attributes.addFlashAttribute("class", "alert-danger");
+        } else {
+            attributes.addFlashAttribute("class", "alert-primary");
+        }
 
         return "redirect:/";
     }
